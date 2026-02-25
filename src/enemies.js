@@ -3,11 +3,11 @@ import { Physics } from './physics.js';
 class Enemy {
     constructor(x, y, w, h, c) {
         this.x = x; this.y = y; this.width = w; this.height = h; this.color = c;
-        this.hp = 100; this.vx = 0; this.vy = 0; this.frozen = 0;
+        this.hp = 100; this.vx = 0; this.velocityY = 0; this.frozen = 0;
     }
     update(platforms, dt) {
         if (this.frozen > 0) { this.frozen -= dt; return; }
-        this.y += this.vy; Physics.applyGravity(this); Physics.resolvePlatforms(this, platforms);
+        this.y += this.velocityY; Physics.applyGravity(this); Physics.resolvePlatforms(this, platforms);
     }
     draw(ctx) {
         ctx.fillStyle = this.frozen > 0 ? '#00fbff' : this.color;

@@ -55,6 +55,12 @@ class Game {
         this.player.update({ keys: this.input.keys, keyPressed: k => { let v = this.input.pressed[k]; this.input.pressed[k] = false; return v; } }, this.platforms, dt);
         this.enemies.forEach((en, i) => {
             en.update(this.player, this.platforms, dt, this.projectiles);
+
+            // Dano por contato
+            if (Physics.checkCollision(this.player, en)) {
+                this.player.hp -= 0.5;
+            }
+
             if (en.hp <= 0) this.enemies.splice(i, 1);
         });
         this.projectiles.forEach((p, i) => {

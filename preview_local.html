@@ -59,10 +59,13 @@
     <script>
         const canvas = document.getElementById('c'), ctx = canvas.getContext('2d');
         canvas.width = 1000; canvas.height = 500;
+        const Physics = {
+            checkCollision: (r1, r2) => r1.x < r2.x + r2.w && r1.x + r1.w > r2.x && r1.y < r2.y + r2.h && r1.y + r1.h > r2.y
+        };
         let p = { x: 100, y: 300, w: 30, h: 45, vx: 0, vy: 0, hp: 100, g: false, dj: true, f: 1 };
         let enemies = [], projectiles = [], input = {}, plat = [{ x: 0, y: 450, w: 2000, h: 50 }, { x: 400, y: 320, w: 200, h: 20 }];
 
-        for (let i = 0; i < 5; i++) enemies.push({ x: 800 + i * 400, y: 300, w: 40, h: 50, hp: 100, frz: 0 });
+        for (let i = 0; i < 5; i++) enemies.push({ x: 800 + i * 400, y: 300, w: 40, h: 50, hp: 100, frz: 0, vy: 0, g: false });
 
         window.onkeydown = e => input[e.code] = true;
         window.onkeyup = e => input[e.code] = false;
@@ -80,6 +83,19 @@
             enemies.forEach((en, i) => {
                 if (en.frz > 0) { en.frz--; return; }
                 en.x += (p.x > en.x ? 1 : -1) * 2;
+
+                // Física e Gravidade para Inimigos
+                en.y += en.vy; en.vy += 0.6; en.g = false;
+                plat.forEach(pl => {
+                    if (en.x < pl.x + pl.w && en.x + en.w > pl.x && en.y + en.h > pl.y && en.y + en.h - en.vy <= pl.y) {
+                        en.y = pl.y - en.h; en.vy = 0; en.g = true;
+                    }
+                });
+
+                if (Physics.checkCollision(p, en)) {
+                    p.hp -= 0.5; // Dano de contato
+                    ctx.save(); ctx.fillStyle = 'rgba(255, 0, 0, 0.3)'; ctx.fillRect(0, 0, 1000, 500); ctx.restore(); // Flash vermelho
+                }
                 if (en.hp <= 0) enemies.splice(i, 1);
             });
 
