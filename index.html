@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Arcane Descent | Roguelike Action</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;700&family=Press+Start+2P&display=swap"
+        rel="stylesheet">
+</head>
+
+<body>
+    <div id="game-container">
+        <canvas id="gameCanvas"></canvas>
+        <div id="ui-layer">
+            <div class="stats">
+                <div class="hp-bar-container">
+                    <div id="hp-bar"></div>
+                </div>
+                <div class="score">Mana: <span id="mana-value">100</span></div>
+            </div>
+            <div id="ability-bar">
+                <div class="ability" id="ability-q" title="Congelamento (Q)">Q</div>
+                <div class="ability" id="ability-lmb" title="Bola de Fogo (LMB)">LMB</div>
+                <div class="ability" id="ability-rmb" title="Teleporte (RMB)">RMB</div>
+            </div>
+        </div>
+        <div id="menu-overlay" class="overlay">
+            <h1>ARCANE DESCENT</h1>
+            <button id="start-btn">INICIAR DESCIDA</button>
+            <p class="controls-hint">A/D: Mover | Espaço: Pulo Duplo | Mouse: Ataque/Teleporte | Q: Congelar</p>
+        </div>
+    </div>
+    <script type="module" src="src/game.js"></script>
+</body>
+
+</html>

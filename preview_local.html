@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Arcane Descent | TESTE RÁPIDO</title>
+    <style>
+        body {
+            margin: 0;
+            background: #0a0a12;
+            color: white;
+            font-family: sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        canvas {
+            background: #000;
+            box-shadow: 0 0 30px rgba(138, 43, 226, 0.3);
+            border: 2px solid #333;
+        }
+
+        .ui {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            width: 300px;
+        }
+
+        .hp-bg {
+            width: 100%;
+            height: 20px;
+            background: #333;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        #hp {
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, #ff4757, #ff6b81);
+            transition: 0.3s;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="ui">
+        <div class="hp-bg">
+            <div id="hp"></div>
+        </div>
+        <p>A/D: Mover | Espaço: Pulo | Mouse: Fogo/Teleporte | Q: Congelar</p>
+    </div>
+    <canvas id="c"></canvas>
+    <script>
+        const canvas = document.getElementById('c'), ctx = canvas.getContext('2d');
+        canvas.width = 1000; canvas.height = 500;
+        let p = { x: 100, y: 300, w: 30, h: 45, vx: 0, vy: 0, hp: 100, g: false, dj: true, f: 1 };
+        let enemies = [], projectiles = [], input = {}, plat = [{ x: 0, y: 450, w: 2000, h: 50 }, { x: 400, y: 320, w: 200, h: 20 }];
+
+        for (let i = 0; i < 5; i++) enemies.push({ x: 800 + i * 400, y: 300, w: 40, h: 50, hp: 100, frz: 0 });
+
+        window.onkeydown = e => input[e.code] = true;
+        window.onkeyup = e => input[e.code] = false;
+        canvas.onmousedown = e => { if (e.button === 0) projectiles.push({ x: p.x + 15, y: p.y + 20, vx: p.f * 10, vy: 0 }); if (e.button === 2) { p.x = e.clientX - canvas.offsetLeft; p.y = e.clientY - canvas.offsetTop; } };
+        window.oncontextmenu = e => e.preventDefault();
+
+        function loop() {
+            if (input.KeyA) { p.vx = -5; p.f = -1; } else if (input.KeyD) { p.vx = 5; p.f = 1; } else p.vx *= 0.8;
+            if (input.Space && p.g) { p.vy = -12; p.g = false; }
+            if (input.KeyQ) enemies.forEach(en => { if (Math.hypot(en.x - p.x, en.y - p.y) < 200) en.frz = 120; });
+
+            p.x += p.vx; p.y += p.vy; p.vy += 0.6; p.g = false;
+            plat.forEach(pl => { if (p.x < pl.x + pl.w && p.x + p.w > pl.x && p.y + p.h > pl.y && p.y + p.h - p.vy <= pl.y) { p.y = pl.y - p.h; p.vy = 0; p.g = true; } });
+
+            enemies.forEach((en, i) => {
+                if (en.frz > 0) { en.frz--; return; }
+                en.x += (p.x > en.x ? 1 : -1) * 2;
+                if (en.hp <= 0) enemies.splice(i, 1);
+            });
+
+            projectiles.forEach((pr, i) => {
+                pr.x += pr.vx;
+                enemies.forEach(en => { if (pr.x > en.x && pr.x < en.x + en.w && pr.y > en.y && pr.y < en.y + en.h) { en.hp -= 34; projectiles.splice(i, 1); } });
+            });
+
+            ctx.clearRect(0, 0, 1000, 500);
+            ctx.save(); ctx.translate(-Math.max(0, p.x - 400), 0);
+            ctx.fillStyle = '#222'; plat.forEach(pl => ctx.fillRect(pl.x, pl.y, pl.w, pl.h));
+            ctx.fillStyle = '#4b0082'; ctx.fillRect(p.x, p.y, p.w, p.h);
+            enemies.forEach(en => { ctx.fillStyle = en.frz > 0 ? '#00fbff' : '#455a64'; ctx.fillRect(en.x, en.y, en.w, en.h); });
+            ctx.fillStyle = '#ff4500'; projectiles.forEach(pr => ctx.fillRect(pr.x, pr.y, 10, 10));
+            ctx.restore();
+            document.getElementById('hp').style.width = p.hp + '%';
+            requestAnimationFrame(loop);
+        }
+        loop();
+    </script>
+</body>
+
+</html>

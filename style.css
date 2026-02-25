@@ -1,0 +1,145 @@
+:root {
+    --primary-purple: #8a2be2;
+    --arcane-blue: #00d4ff;
+    --crimson: #ff4757;
+    --dark-bg: #0a0a12;
+    --glass: rgba(255, 255, 255, 0.1);
+}
+
+body,
+html {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background-color: var(--dark-bg);
+    font-family: 'Outfit', sans-serif;
+    color: white;
+}
+
+#game-container {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: radial-gradient(circle, #1a1a2e 0%, #0a0a12 100%);
+}
+
+#gameCanvas {
+    background-color: #000;
+    box-shadow: 0 0 50px rgba(0, 0, 0, 0.5);
+    image-rendering: pixelated;
+    max-width: 100%;
+    max-height: 100%;
+}
+
+#ui-layer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    padding: 20px;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+.stats {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+.hp-bar-container {
+    width: 300px;
+    height: 25px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    border-radius: 12px;
+    overflow: hidden;
+    backdrop-filter: blur(5px);
+}
+
+#hp-bar {
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, var(--crimson), #ff6b81);
+    transition: width 0.3s ease;
+}
+
+.score {
+    font-family: 'Press Start 2P', cursive;
+    font-size: 14px;
+    color: var(--arcane-blue);
+    text-shadow: 0 0 10px var(--arcane-blue);
+}
+
+#ability-bar {
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+    padding-bottom: 20px;
+}
+
+.ability {
+    width: 50px;
+    height: 50px;
+    background: var(--glass);
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    border-radius: 10px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-weight: bold;
+    backdrop-filter: blur(10px);
+}
+
+.overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.85);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 10;
+    backdrop-filter: blur(10px);
+}
+
+h1 {
+    font-family: 'Press Start 2P', cursive;
+    font-size: 3rem;
+    background: linear-gradient(to bottom, #fff, var(--primary-purple));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    filter: drop-shadow(0 0 20px rgba(138, 43, 226, 0.5));
+}
+
+button {
+    padding: 15px 40px;
+    font-size: 1.2rem;
+    font-weight: bold;
+    background: var(--primary-purple);
+    color: white;
+    border: none;
+    border-radius: 30px;
+    cursor: pointer;
+    transition: 0.3s;
+}
+
+button:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(138, 43, 226, 0.4);
+}
+
+.controls-hint {
+    margin-top: 30px;
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 0.9rem;
+}
