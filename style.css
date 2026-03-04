@@ -139,6 +139,26 @@ button:hover {
     box-shadow: 0 10px 20px rgba(138, 43, 226, 0.4);
 }
 
+#boss-message {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-family: 'Press Start 2P', cursive;
+    font-size: 20px;
+    color: #ffd700;
+    text-shadow: 0 0 20px rgba(255, 215, 0, 0.6);
+    text-align: center;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 1s ease;
+    z-index: 100;
+}
+
+#boss-message.show {
+    opacity: 1;
+}
+
 .controls-hint {
     margin-top: 30px;
     color: rgba(255, 255, 255, 0.5);
@@ -167,4 +187,29 @@ button:hover {
 
 #restart-btn:hover {
     box-shadow: 0 10px 20px rgba(255, 71, 87, 0.4);
+}
+
+/* Telas Amarelas de Vitória */
+.win-title {
+    background: linear-gradient(to bottom, #ffd700, #ffae00) !important;
+    -webkit-background-clip: text !important;
+    background-clip: text !important;
+    -webkit-text-fill-color: transparent !important;
+    filter: drop-shadow(0 0 20px rgba(255, 215, 0, 0.5)) !important;
+    margin-bottom: 5px;
+}
+
+#win-reason {
+    color: #ffd700;
+    margin-bottom: 40px;
+    font-size: 1.2rem;
+    font-style: italic;
+}
+
+.win-btn {
+    background: #ffae00 !important;
+}
+
+.win-btn:hover {
+    box-shadow: 0 10px 20px rgba(255, 174, 0, 0.4) !important;
 }

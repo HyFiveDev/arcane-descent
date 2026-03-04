@@ -27,6 +27,7 @@
                 <div class="ability" id="ability-lmb" title="Bola de Fogo (LMB)">LMB</div>
                 <div class="ability" id="ability-rmb" title="Teleporte (RMB)">RMB</div>
             </div>
+            <div id="boss-message">Bem-vindo ao palácio do dragão das profundezas</div>
         </div>
         <div id="menu-overlay" class="overlay">
             <h1>ARCANE DESCENT</h1>
@@ -38,8 +39,16 @@
             <p id="death-reason">A escuridão tomou conta de você</p>
             <button id="restart-btn" onclick="location.reload()">REINICIAR JORNADA</button>
         </div>
+        <div id="win-overlay" class="overlay" style="display: none;">
+            <h1 class="win-title">VITÓRIA ARCANA!</h1>
+            <p id="win-reason">O Dragão das Profundezas foi derrotado</p>
+            <button id="win-btn" class="win-btn" onclick="location.reload()">VOLTAR AO MENU</button>
+        </div>
     </div>
-    <script type="module" src="src/game.js"></script>
+    <script src="src/physics.js"></script>
+    <script src="src/player.js"></script>
+    <script src="src/enemies.js"></script>
+    <script src="src/game.js"></script>
 </body>
 
 </html>
