@@ -220,6 +220,17 @@ class Game {
             }
         }
 
+        // Atualizar Partículas
+        for (let i = this.particles.length - 1; i >= 0; i--) {
+            const p = this.particles[i];
+            p.x += p.vx;
+            p.y += p.vy;
+            p.life -= 0.02; // Diminui a vida gradualmente
+            if (p.life <= 0) {
+                this.particles.splice(i, 1);
+            }
+        }
+
         // --- RESTAURADO: UI e Game Over ---
         const hpBar = document.getElementById('hp-bar');
         if (hpBar) hpBar.style.width = Math.max(0, this.player.hp) + '%';
