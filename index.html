@@ -33,6 +33,11 @@
             <button id="start-btn">INICIAR DESCIDA</button>
             <p class="controls-hint">A/D: Mover | Espaço: Pulo Duplo | Mouse: Ataque/Teleporte | Q: Congelar</p>
         </div>
+        <div id="gameover-overlay" class="overlay" style="display: none;">
+            <h1 class="death-title">VOCÊ DESCIA FUNDO DEMAIS...</h1>
+            <p id="death-reason">A escuridão tomou conta de você</p>
+            <button id="restart-btn" onclick="location.reload()">REINICIAR JORNADA</button>
+        </div>
     </div>
     <script type="module" src="src/game.js"></script>
 </body>

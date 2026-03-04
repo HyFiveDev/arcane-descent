@@ -117,6 +117,7 @@ h1 {
     font-size: 3rem;
     background: linear-gradient(to bottom, #fff, var(--primary-purple));
     -webkit-background-clip: text;
+    background-clip: text;
     -webkit-text-fill-color: transparent;
     filter: drop-shadow(0 0 20px rgba(138, 43, 226, 0.5));
 }
@@ -142,4 +143,28 @@ button:hover {
     margin-top: 30px;
     color: rgba(255, 255, 255, 0.5);
     font-size: 0.9rem;
+}
+
+.death-title {
+    background: linear-gradient(to bottom, #ff4757, #ff6b81) !important;
+    -webkit-background-clip: text !important;
+    background-clip: text !important;
+    -webkit-text-fill-color: transparent !important;
+    filter: drop-shadow(0 0 20px rgba(255, 71, 87, 0.5)) !important;
+    margin-bottom: 5px;
+}
+
+#death-reason {
+    color: #ff6b81;
+    margin-bottom: 40px;
+    font-size: 1.2rem;
+    font-style: italic;
+}
+
+#restart-btn {
+    background: var(--crimson);
+}
+
+#restart-btn:hover {
+    box-shadow: 0 10px 20px rgba(255, 71, 87, 0.4);
 }

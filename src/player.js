@@ -5,7 +5,7 @@ export class Player {
         this.x = x; this.y = y; this.width = 30; this.height = 48;
         this.velocityX = 0; this.velocityY = 0;
         this.hp = 100; this.mana = 100; this.grounded = false; this.facing = 1;
-        this.cooldowns = { f: 0, t: 0, q: 0 };
+        this.cooldowns = { fireball: 0, t: 0, q: 0 };
     }
     update(input, platforms, dt) {
         if (input.keys['KeyA']) { this.velocityX = -5; this.facing = -1; }
