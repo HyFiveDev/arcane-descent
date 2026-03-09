@@ -34,8 +34,7 @@ class Soldier extends Enemy {
     constructor(x, y) { super(x, y, 30, 50, '#708090'); this.speed = 3.5; }
     update(player, platforms, dt) {
         if (this.frozen <= 0) {
-            const dist = Math.abs(player.x - this.x);
-            if (dist > 50) this.x += (player.x > this.x ? 1 : -1) * this.speed;
+            this.x += (player.x > this.x ? 1 : -1) * this.speed;
         }
         super.update(platforms, dt);
     }

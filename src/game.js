@@ -86,9 +86,26 @@ class Game {
             // Efeito de saída
             this.createParticles(this.player.x + 15, this.player.y + 24, '#8a2be2', 20);
 
+            // Posição temporária para o cálculo de colisão
+            let newX = tx - this.player.width / 2;
+            let newY = ty - this.player.height / 2;
+
+            // Ajusta para o topo se clicar dentro de uma plataforma
+            this.platforms.forEach(p => {
+                const overlap = newX < p.x + p.width &&
+                    newX + this.player.width > p.x &&
+                    newY < p.y + p.height &&
+                    newY + this.player.height > p.y;
+
+                if (overlap) {
+                    newY = p.y - this.player.height;
+                }
+            });
+
             // Move o jogador
-            this.player.x = tx - this.player.width / 2;
-            this.player.y = ty - this.player.height / 2;
+            this.player.x = newX;
+            this.player.y = newY;
+            this.player.velocityY = 0; // Para evitar que entre no chão pela gravidade no mesmo frame
 
             // Efeito de chegada
             this.createParticles(this.player.x + 15, this.player.y + 24, '#00d4ff', 20);
