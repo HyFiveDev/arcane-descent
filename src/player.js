@@ -7,38 +7,59 @@ class Player {
         this.coyoteTime = 0; // Tempo extra para pular após cair
         this.jumpBuffer = 0; // Buffer para pular se apertar antes de tocar o chão
     }
-    update(input, platforms, dt) {
+    update(input, platforms, ladders, dt) {
         if (this.hurt > 0) this.hurt -= dt;
-        if (input.keys['KeyA']) { this.velocityX = -5; this.facing = -1; }
-        else if (input.keys['KeyD']) { this.velocityX = 5; this.facing = 1; }
-        else this.velocityX *= 0.8;
+        
+        let onLadder = false;
+        ladders.forEach(l => {
+            if (Physics.checkCollision(this, l)) onLadder = true;
+        });
 
-        if (this.grounded) {
-            this.coyoteTime = 150; // 150ms de tolerância
-            this.doubleJump = true;
-        } else if (this.coyoteTime > 0) {
-            this.coyoteTime -= dt;
-        }
-
-        if (input.keyPressed('Space')) this.jumpBuffer = 150;
-        if (this.jumpBuffer > 0) this.jumpBuffer -= dt;
-
-        // Lógica de Pulo Responsiva
-        if (this.jumpBuffer > 0) {
-            if (this.grounded || this.coyoteTime > 0) {
-                this.velocityY = -12;
-                this.grounded = false;
-                this.coyoteTime = 0;
-                this.jumpBuffer = 0;
-            } else if (this.doubleJump) {
-                this.velocityY = -12;
-                this.doubleJump = false;
-                this.jumpBuffer = 0;
+        if (onLadder) {
+            if (input.keys['KeyW']) { this.y -= 4; this.velocityY = 0; this.climbing = true; }
+            else if (input.keys['KeyS']) { this.y += 4; this.velocityY = 0; this.climbing = true; }
+            else if (this.climbing) { this.velocityY = 0; }
+            
+            if (input.keyPressed('Space')) {
+                this.velocityY = -10;
+                this.climbing = false;
             }
+        } else {
+            this.climbing = false;
         }
 
-        this.x += this.velocityX; this.y += this.velocityY;
-        Physics.applyGravity(this);
+        if (!this.climbing) {
+            if (input.keys['KeyA']) { this.velocityX = -5; this.facing = -1; }
+            else if (input.keys['KeyD']) { this.velocityX = 5; this.facing = 1; }
+            else this.velocityX *= 0.8;
+
+            if (this.grounded) {
+                this.coyoteTime = 150;
+                this.doubleJump = true;
+            } else if (this.coyoteTime > 0) {
+                this.coyoteTime -= dt;
+            }
+
+            if (input.keyPressed('Space')) this.jumpBuffer = 150;
+            if (this.jumpBuffer > 0) this.jumpBuffer -= dt;
+
+            if (this.jumpBuffer > 0) {
+                if (this.grounded || this.coyoteTime > 0) {
+                    this.velocityY = -12;
+                    this.grounded = false;
+                    this.coyoteTime = 0;
+                    this.jumpBuffer = 0;
+                } else if (this.doubleJump) {
+                    this.velocityY = -12;
+                    this.doubleJump = false;
+                    this.jumpBuffer = 0;
+                }
+            }
+            this.y += this.velocityY;
+            Physics.applyGravity(this);
+        }
+
+        this.x += this.velocityX;
         Physics.resolvePlatforms(this, platforms);
 
         Object.keys(this.cooldowns).forEach(k => { if (this.cooldowns[k] > 0) this.cooldowns[k] -= dt; });

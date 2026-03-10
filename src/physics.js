@@ -29,8 +29,34 @@ class Physics {
         e.grounded = false;
         platforms.forEach(p => {
             if (this.checkCollision(e, p)) {
-                if (e.velocityY > 0 && e.y + e.height - e.velocityY <= p.y) {
-                    e.y = p.y - e.height; e.velocityY = 0; e.grounded = true;
+                // Cálculo de sobreposição
+                const overlapX = Math.min(e.x + e.width, p.x + p.width) - Math.max(e.x, p.x);
+                const overlapY = Math.min(e.y + e.height, p.y + p.height) - Math.max(e.y, p.y);
+
+                if (overlapX < overlapY) {
+                    // Colisão Horizontal (Paredes)
+                    if (e.x + e.width / 2 < p.x + p.width / 2) {
+                        e.x = p.x - e.width;
+                    } else {
+                        e.x = p.x + p.width;
+                    }
+                    e.velocityX = 0;
+                } else {
+                    // Colisão Vertical (Chão e Teto)
+                    if (e.y + e.height / 2 < p.y + p.height / 2) {
+                        // Chão
+                        if (e.velocityY >= 0) {
+                            e.y = p.y - e.height;
+                            e.velocityY = 0;
+                            e.grounded = true;
+                        }
+                    } else {
+                        // Teto
+                        if (e.velocityY < 0) {
+                            e.y = p.y + p.height;
+                            e.velocityY = 0;
+                        }
+                    }
                 }
             }
         });

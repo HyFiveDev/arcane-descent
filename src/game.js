@@ -7,12 +7,12 @@ class Game {
         this.canvas.width = 1200; this.canvas.height = 600;
         this.player = new Player(100, 450);
         this.enemies = []; this.platforms = []; this.projectiles = []; this.particles = [];
+        this.ladders = []; this.doors = [];
         this.input = { keys: {}, pressed: {}, mouseX: 0, mouseY: 0, mouseDown: false };
         this.state = 'menu'; this.lt = 0;
         this.camX = 0;
-        this.door = { x: 2200, y: 350, w: 40, h: 200, open: false };
-        this.playerNearDoor = false;
-        this.showingBossMessage = false;
+        this.camY = 0;
+        this.roomCount = 0;
         this.setup();
         requestAnimationFrame(t => this.loop(t));
     }
@@ -38,7 +38,6 @@ class Game {
             const pos = getMousePos(e);
             if (e.button === 0) this.input.mouseDown = true;
             if (e.button === 2) {
-                // Teleporte usa a posição ATUAL da câmera
                 this.teleport(pos.x + this.camX, pos.y);
             }
         });
@@ -53,16 +52,6 @@ class Game {
             this.state = 'playing'; this.generate();
         };
     }
-    generate() {
-        this.platforms = [
-            { x: 0, y: 550, width: 4000, height: 50 }, // Chão estendido
-            { x: 400, y: 400, width: 200, height: 20 },
-            { x: 800, y: 300, width: 250, height: 20 },
-            { x: 2200, y: 540, width: 200, height: 10 } // Plataforma na porta
-        ];
-        for (let i = 0; i < 3; i++) this.enemies.push(new Orc(1000 + i * 500, 400), new Soldier(1200 + i * 500, 400));
-        this.enemies.push(new DragonBoss(3400, 350)); // Dragão mais longe na sala dele
-    }
     fire(tx, ty) {
         if (this.player.cooldowns.fireball <= 0) {
             const angle = Math.atan2(ty - (this.player.y + 20), tx - (this.player.x + 15));
@@ -73,44 +62,43 @@ class Game {
                 vy: Math.sin(angle) * 18,
                 r: 8, color: '#ff4500'
             });
-            this.player.cooldowns.fireball = 300; // Disparo mais rápido (0.3s)
+            this.player.cooldowns.fireball = 300;
         }
     }
     teleport(tx, ty) {
         if (this.player.cooldowns.t <= 0) {
-            // Se a porta estiver fechada, não permite teleportar para o outro lado
-            if (!this.door.open && this.player.x < this.door.x && tx > this.door.x) {
-                tx = this.door.x - 21; // Limita o teleporte para antes da porta
+            // Posição desejada (centro do jogador no clique)
+            let targetX = tx - this.player.width / 2;
+            let targetY = ty - this.player.height / 2;
+
+            // Checar se o destino está DENTRO de alguma plataforma preta
+            // Se estiver, cancelamos o teleporte para evitar que o jogador fique preso ou saia do mapa
+            let insideWall = false;
+            const tempPlayer = { x: targetX, y: targetY, width: this.player.width, height: this.player.height };
+            
+            for (let p of this.platforms) {
+                if (Physics.checkCollision(tempPlayer, p)) {
+                    insideWall = true;
+                    break;
+                }
             }
 
-            // Efeito de saída
-            this.createParticles(this.player.x + 15, this.player.y + 24, '#8a2be2', 20);
+            if (!insideWall) {
+                // Efeito de saída
+                this.createParticles(this.player.x + 15, this.player.y + 24, '#8a2be2', 20);
 
-            // Posição temporária para o cálculo de colisão
-            let newX = tx - this.player.width / 2;
-            let newY = ty - this.player.height / 2;
+                // Move o jogador
+                this.player.x = targetX;
+                this.player.y = targetY;
+                this.player.velocityY = 0;
 
-            // Ajusta para o topo se clicar dentro de uma plataforma
-            this.platforms.forEach(p => {
-                const overlap = newX < p.x + p.width &&
-                    newX + this.player.width > p.x &&
-                    newY < p.y + p.height &&
-                    newY + this.player.height > p.y;
-
-                if (overlap) {
-                    newY = p.y - this.player.height;
-                }
-            });
-
-            // Move o jogador
-            this.player.x = newX;
-            this.player.y = newY;
-            this.player.velocityY = 0; // Para evitar que entre no chão pela gravidade no mesmo frame
-
-            // Efeito de chegada
-            this.createParticles(this.player.x + 15, this.player.y + 24, '#00d4ff', 20);
-
-            this.player.cooldowns.t = 250; // Teleporte rápido (0.25s)
+                // Efeito de chegada
+                this.createParticles(this.player.x + 15, this.player.y + 24, '#00d4ff', 20);
+                this.player.cooldowns.t = 250;
+            } else {
+                // Feedback visual de falha (opcional: algumas partículas vermelhas no mouse)
+                this.createParticles(tx, ty, '#ff0000', 5);
+            }
         }
     }
     createParticles(x, y, color, count) {
@@ -125,42 +113,92 @@ class Game {
             });
         }
     }
-    update(dt) {
-        if (this.state !== 'playing') return;
+    generate(triggerDoor = null) {
+        let offsetX = 0;
+        let offsetY = 0;
+        let requiredSide = null;
 
-        // Atualização da Câmera: Segue o jogador mas para nas bordas do nível (3000px)
-        // Canvas tem 1200px, então a câmera pode ir de 0 a 1800
-        const targetCamX = Math.max(0, Math.min(this.player.x - 600, 2800)); // Limite estendido
-        this.camX += (targetCamX - this.camX) * 0.1;
+        if (triggerDoor) {
+            requiredSide = triggerDoor.side;
+            
+            // Lógica de Alinhamento:
+            // Se a porta estava na Direita (x=29), a nova sala surge à direita (offsetX += width).
+            // Precisamos que a porta da Esquerda (x=0) da nova sala se alinhe com o Y da porta antiga.
+            if (requiredSide === 'right') offsetX = triggerDoor.x + 20; // +20 para compensar o ajuste do gatilho
+            if (requiredSide === 'left') offsetX = triggerDoor.x - (30 * TILE_SIZE);
+            if (requiredSide === 'top') offsetY = triggerDoor.y - (15 * TILE_SIZE);
+            if (requiredSide === 'bottom') offsetY = triggerDoor.y + 20;
+        }
 
-        // Lógica da Porta
-        const distToDoor = Math.hypot(this.player.x - this.door.x, this.player.y - (this.door.y + this.door.h / 2));
-        this.playerNearDoor = !this.door.open && distToDoor < 150;
+        const roomIndex = (this.roomCount === 0) ? 0 : -1;
+        const roomData = RoomManager.generateRoom(roomIndex, offsetX, offsetY, requiredSide);
 
-        if (this.playerNearDoor && this.input.pressed['KeyE']) {
-            this.door.open = true;
-            this.createParticles(this.door.x + 20, this.door.y + 100, '#8b4513', 30); // Partículas de madeira
-            this.input.pressed['KeyE'] = false;
+        // Se houver uma porta de entrada na nova sala que se alinha com a de saída da antiga,
+        // ajustamos a posição da nova sala para que as portas fiquem perfeitas.
+        if (triggerDoor) {
+            let oppositeSide = '';
+            if (requiredSide === 'right') oppositeSide = 'left';
+            if (requiredSide === 'left') oppositeSide = 'right';
+            if (requiredSide === 'top') oppositeSide = 'bottom';
+            if (requiredSide === 'bottom') oppositeSide = 'top';
 
-            // Exibir Bem-vindo ao palácio do dragão
-            const msg = document.getElementById('boss-message');
-            if (msg) {
-                msg.classList.add('show');
-                this.showingBossMessage = true;
-                setTimeout(() => {
-                    msg.classList.remove('show');
-                    this.showingBossMessage = false;
-                }, 3000); // 3 segundos de exibição
+            const entryDoor = roomData.doors.find(d => d.side === oppositeSide);
+            if (entryDoor) {
+                // Ajuste fino para alinhar as alturas/posições das portas
+                const diffX = triggerDoor.x - entryDoor.x;
+                const diffY = triggerDoor.y - entryDoor.y;
+                
+                // Aplica o ajuste a todos os elementos da nova sala
+                roomData.platforms.forEach(p => { p.x += diffX; p.y += diffY; });
+                roomData.ladders.forEach(l => { l.x += diffX; l.y += diffY; });
+                roomData.enemies.forEach(e => { e.x += diffX; e.y += diffY; });
+                roomData.doors.forEach(d => { d.x += diffX; d.y += diffY; });
+                
+                // Apaga a porta de entrada da nova sala
+                const entryIdx = roomData.doors.indexOf(entryDoor);
+                roomData.doors.splice(entryIdx, 1);
             }
         }
 
-        // Bloqueio físico da porta
-        if (!this.door.open && this.player.x + this.player.width > this.door.x && this.player.x < this.door.x + this.door.w) {
-            this.player.x = this.door.x - this.player.width;
+        // Adiciona os novos elementos aos existentes ao invés de substituir
+        this.platforms.push(...roomData.platforms);
+        this.ladders.push(...roomData.ladders);
+        this.enemies.push(...roomData.enemies);
+        this.doors.push(...roomData.doors);
+
+        if (this.roomCount === 0) {
+            this.player.x = roomData.spawn.x;
+            this.player.y = roomData.spawn.y;
+        }
+
+        this.roomCount++;
+
+        if (this.roomCount % 10 === 0) {
+            // Boss surge à frente do jogador
+            this.enemies.push(new DragonBoss(this.player.x + 500, this.player.y - 100));
+        }
+    }
+    update(dt) {
+        if (this.state !== 'playing') return;
+
+        const targetCamX = this.player.x - 600 + this.player.width / 2;
+        const targetCamY = this.player.y - 300 + this.player.height / 2;
+        this.camX += (targetCamX - this.camX) * 0.1;
+        this.camY += (targetCamY - this.camY) * 0.1;
+
+        // Checar transição e expandir
+        for (let i = this.doors.length - 1; i >= 0; i--) {
+            const d = this.doors[i];
+            if (Physics.checkCollision(this.player, d)) {
+                const triggerDoor = { ...d };
+                this.doors.splice(i, 1); // Remove a porta vermelha que o player encostou
+                this.generate(triggerDoor); 
+                break;
+            }
         }
 
         const worldMouseX = this.input.mouseX + this.camX;
-        const worldMouseY = this.input.mouseY;
+        const worldMouseY = this.input.mouseY + this.camY;
 
         if (this.input.pressed['KeyQ']) {
             this.enemies.forEach(en => {
@@ -173,103 +211,95 @@ class Game {
 
         if (this.input.mouseDown) this.fire(worldMouseX, worldMouseY);
 
-        this.player.update({ keys: this.input.keys, keyPressed: k => { let v = this.input.pressed[k]; this.input.pressed[k] = false; return v; } }, this.platforms, dt);
-        // Atualizar Inimigos (loop invertido para remoção segura)
+        this.player.update({ 
+            keys: this.input.keys, 
+            keyPressed: k => { let v = this.input.pressed[k]; this.input.pressed[k] = false; return v; } 
+        }, this.platforms, this.ladders, dt);
+
         for (let i = this.enemies.length - 1; i >= 0; i--) {
             const en = this.enemies[i];
-            en.update(this.player, this.platforms, dt, this.projectiles, this.showingBossMessage);
+            en.update(this.player, this.platforms, dt, this.projectiles, false);
 
-            // Dano por contato (apenas se não estiver congelado)
             if (Physics.checkCollision(this.player, en) && en.frozen <= 0) {
                 this.player.hp -= 0.5;
             }
 
             if (en.hp <= 0) {
                 this.createParticles(en.x + en.width / 2, en.y + en.height / 2, en.color, 15);
-
-                // Se for o Boss, ativa a vitória
                 if (en instanceof DragonBoss) {
                     this.state = 'win';
-                    const winOverlay = document.getElementById('win-overlay');
-                    if (winOverlay) winOverlay.style.display = 'flex';
+                    document.getElementById('win-overlay').style.display = 'flex';
                 }
-
                 this.enemies.splice(i, 1);
             }
         }
 
-        // Atualizar Projéteis
         for (let i = this.projectiles.length - 1; i >= 0; i--) {
             const p = this.projectiles[i];
-
-            // Move primeiro
-            p.x += p.vx;
-            p.y += p.vy || 0;
-
+            p.x += p.vx; p.y += p.vy || 0;
             let removed = false;
-
-            // Checa colisão após o movimento
             if (p.fromEn) {
-                if (Physics.checkCollision(p, this.player)) {
-                    this.player.hp -= 10;
-                    removed = true;
-                }
+                if (Physics.checkCollision(p, this.player)) { this.player.hp -= 10; removed = true; }
             } else {
                 for (let j = this.enemies.length - 1; j >= 0; j--) {
                     const en = this.enemies[j];
                     if (Physics.checkCollision(p, en)) {
-                        en.hp -= 35;
-                        en.hurt = 150; // Aumentado para feedback mais visível
+                        en.hp -= 35; en.hurt = 150;
                         this.createParticles(p.x, p.y, p.color, 12);
-                        removed = true;
-                        break;
+                        removed = true; break;
                     }
                 }
             }
-
-            // Remover se colidiu ou saiu do mapa
-            if (!removed && (p.x < -500 || p.x > 4500 || p.y < -500 || p.y > 1000)) {
-                removed = true;
-            }
-
-            if (removed) {
-                this.projectiles.splice(i, 1);
-            }
+            // Limites baseados na posição da câmera ou um mundo maior
+            if (!removed && (p.x < this.camX - 200 || p.x > this.camX + 1400 || p.y < this.camY - 200 || p.y > this.camY + 800)) removed = true;
+            if (removed) this.projectiles.splice(i, 1);
         }
 
-        // Atualizar Partículas
         for (let i = this.particles.length - 1; i >= 0; i--) {
             const p = this.particles[i];
-            p.x += p.vx;
-            p.y += p.vy;
-            p.life -= 0.02; // Diminui a vida gradualmente
-            if (p.life <= 0) {
-                this.particles.splice(i, 1);
-            }
+            p.x += p.vx; p.y += p.vy; p.life -= 0.02;
+            if (p.life <= 0) this.particles.splice(i, 1);
         }
 
-        // --- RESTAURADO: UI e Game Over ---
         const hpBar = document.getElementById('hp-bar');
         if (hpBar) hpBar.style.width = Math.max(0, this.player.hp) + '%';
-
         const manaValue = document.getElementById('mana-value');
         if (manaValue) manaValue.innerText = Math.floor(this.player.mana);
 
         if (this.player.hp <= 0) {
             this.state = 'gameOver';
-            const overlay = document.getElementById('gameover-overlay');
-            if (overlay) overlay.style.display = 'flex';
+            document.getElementById('gameover-overlay').style.display = 'flex';
         }
     }
     draw() {
         this.ctx.clearRect(0, 0, 1200, 600);
+        
+        // Fundo estável (Cinza escuro) - Desenhar antes do translate ou cobrindo tudo
+        this.ctx.fillStyle = '#1a1a1a';
+        this.ctx.fillRect(0, 0, 1200, 600);
+
         this.ctx.save();
-        this.ctx.translate(-this.camX, 0);
+        this.ctx.translate(-this.camX, -this.camY);
 
-        // Chão e Plataformas
-        this.platforms.forEach(p => { this.ctx.fillStyle = '#222'; this.ctx.fillRect(p.x, p.y, p.width, p.height); });
+        // Plataformas (Preto)
+        this.ctx.fillStyle = '#000';
+        this.platforms.forEach(p => { this.ctx.fillRect(p.x, p.y, p.width, p.height); });
 
-        // Partículas
+        // Escadas (Amarelo)
+        this.ctx.fillStyle = '#ffdf00';
+        this.ladders.forEach(l => {
+            // Desenha degraus
+            for (let y = l.y; y < l.y + l.height; y += 10) {
+                this.ctx.fillRect(l.x, y, l.width, 4);
+            }
+            this.ctx.fillRect(l.x, l.y, 4, l.height);
+            this.ctx.fillRect(l.x + l.width - 4, l.y, 4, l.height);
+        });
+
+        // Portas (Vermelho)
+        this.ctx.fillStyle = '#ff0000';
+        this.doors.forEach(d => { this.ctx.fillRect(d.x, d.y, d.width, d.height); });
+
         this.particles.forEach(p => {
             this.ctx.globalAlpha = p.life;
             this.ctx.fillStyle = p.color;
@@ -278,26 +308,8 @@ class Game {
         this.ctx.globalAlpha = 1;
 
         this.player.draw(this.ctx);
-        this.enemies.forEach(en => {
-            // Só desenha e atualiza o dragão se a porta estiver aberta ou ele estiver longe o suficiente (opcional)
-            en.draw(this.ctx);
-        });
+        this.enemies.forEach(en => en.draw(this.ctx));
 
-        // Desenhar Porta
-        if (!this.door.open) {
-            this.ctx.fillStyle = '#4a2c10'; // Cor de madeira escura
-            this.ctx.fillRect(this.door.x, this.door.y, this.door.w, this.door.h);
-            this.ctx.strokeStyle = '#ffd700'; // Maçaneta dourada
-            this.ctx.lineWidth = 3;
-            this.ctx.strokeRect(this.door.x + 10, this.door.y + 90, 10, 20);
-
-            if (this.playerNearDoor) {
-                this.ctx.fillStyle = 'white';
-                this.ctx.font = '20px Arial';
-                this.ctx.textAlign = 'center';
-                this.ctx.fillText('[E] ABRIR PORTA', this.door.x + 20, this.door.y - 20);
-            }
-        }
         this.projectiles.forEach(p => {
             this.ctx.fillStyle = p.color;
             this.ctx.shadowBlur = 10; this.ctx.shadowColor = p.color;
@@ -307,7 +319,7 @@ class Game {
         this.ctx.restore();
     }
     loop(t) {
-        if (!this.lt) this.lt = t; // Inicializa lt no primeiro frame
+        if (!this.lt) this.lt = t;
         const dt = t - this.lt;
         this.update(dt);
         this.draw();
@@ -316,3 +328,4 @@ class Game {
     }
 }
 new Game();
+
