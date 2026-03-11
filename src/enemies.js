@@ -2,6 +2,8 @@ class Enemy {
     constructor(x, y, w, h, c) {
         this.x = x; this.y = y; this.width = w; this.height = h; this.color = c;
         this.hp = 100; this.maxHp = 100; this.vx = 0; this.velocityY = 0; this.frozen = 0; this.hurt = 0;
+        this.activated = false;
+        this.activationRange = 600; // Distância para começar a perseguir
     }
     update(platforms, dt) {
         if (this.hurt > 0) this.hurt -= dt;
@@ -11,7 +13,7 @@ class Enemy {
     draw(ctx) {
         let drawColor = this.color;
         if (this.frozen > 0) drawColor = '#00fbff';
-        if (this.hurt > 0) drawColor = 'white'; // Flash branco ao levar dano
+        if (this.hurt > 0) drawColor = 'white';
 
         ctx.fillStyle = drawColor;
         ctx.fillRect(this.x, this.y, this.width, this.height);
@@ -25,7 +27,12 @@ class Enemy {
 class Orc extends Enemy {
     constructor(x, y) { super(x, y, 40, 60, '#556b2f'); this.speed = 1.5; }
     update(player, platforms, dt) {
-        if (this.frozen <= 0) this.x += (player.x > this.x ? 1 : -1) * this.speed;
+        const dist = Math.hypot(player.x - this.x, player.y - this.y);
+        if (dist < this.activationRange) this.activated = true;
+
+        if (this.activated && this.frozen <= 0) {
+            this.x += (player.x > this.x ? 1 : -1) * this.speed;
+        }
         super.update(platforms, dt);
     }
 }
@@ -33,7 +40,10 @@ class Orc extends Enemy {
 class Soldier extends Enemy {
     constructor(x, y) { super(x, y, 30, 50, '#708090'); this.speed = 3.5; }
     update(player, platforms, dt) {
-        if (this.frozen <= 0) {
+        const dist = Math.hypot(player.x - this.x, player.y - this.y);
+        if (dist < this.activationRange) this.activated = true;
+
+        if (this.activated && this.frozen <= 0) {
             this.x += (player.x > this.x ? 1 : -1) * this.speed;
         }
         super.update(platforms, dt);
@@ -44,18 +54,22 @@ class DragonBoss extends Enemy {
     constructor(x, y) {
         super(x, y, 150, 200, '#8b0000');
         this.hp = 500; this.maxHp = 500; this.atkT = 0; this.clawT = 0;
+        this.activationRange = 800;
     }
     update(player, platforms, dt, projectiles, showingMessage) {
         if (showingMessage) { this.atkT = 0; this.clawT = 0; return; }
+        
+        const dist = Math.hypot((player.x + player.width / 2) - (this.x + this.width / 2), (player.y + player.height / 2) - (this.y + this.height / 2));
+        if (dist < this.activationRange) this.activated = true;
+
+        if (!this.activated) return;
+
         this.atkT += dt;
         this.clawT += dt;
-        const dist = Math.hypot((player.x + player.width / 2) - (this.x + this.width / 2), (player.y + player.height / 2) - (this.y + this.height / 2));
 
-        // Ataque de Garra (Melee) - Ocorre se o jogador chegar muito perto
         if (this.clawT > 1000 && this.frozen <= 0 && dist < 220) {
-            player.hp -= 15; // Dano maior por ser perto
+            player.hp -= 15;
             this.clawT = 0;
-            // Efeito visual de garra (um flash vermelho/branco rápido na posição do jogador)
             player.hurt = 100;
         }
 

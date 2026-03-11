@@ -6,8 +6,9 @@ class Game {
         this.ctx = this.canvas.getContext('2d');
         this.canvas.width = 1200; this.canvas.height = 600;
         this.player = new Player(100, 450);
-        this.enemies = []; this.platforms = []; this.projectiles = []; this.particles = [];
+        this.platforms = []; this.enemies = []; this.projectiles = []; this.particles = [];
         this.ladders = []; this.doors = [];
+        this.rooms = []; // Rastrear as áreas de cada sala criada
         this.input = { keys: {}, pressed: {}, mouseX: 0, mouseY: 0, mouseDown: false };
         this.state = 'menu'; this.lt = 0;
         this.camX = 0;
@@ -38,7 +39,7 @@ class Game {
             const pos = getMousePos(e);
             if (e.button === 0) this.input.mouseDown = true;
             if (e.button === 2) {
-                this.teleport(pos.x + this.camX, pos.y);
+                this.teleport(pos.x + this.camX, pos.y + this.camY);
             }
         });
 
@@ -71,33 +72,34 @@ class Game {
             let targetX = tx - this.player.width / 2;
             let targetY = ty - this.player.height / 2;
 
-            // Checar se o destino está DENTRO de alguma plataforma preta
-            // Se estiver, cancelamos o teleporte para evitar que o jogador fique preso ou saia do mapa
-            let insideWall = false;
-            const tempPlayer = { x: targetX, y: targetY, width: this.player.width, height: this.player.height };
-            
+            // Verificamos se o PONTO exato do clique não está dentro de uma parede
+            // Isso permite teleportar próximo ao chão/paredes sem ser bloqueado pela "caixa" do player
+            let pointInsideWall = false;
             for (let p of this.platforms) {
-                if (Physics.checkCollision(tempPlayer, p)) {
-                    insideWall = true;
+                if (tx > p.x && tx < p.x + p.width && ty > p.y && ty < p.y + p.height) {
+                    pointInsideWall = true;
                     break;
                 }
             }
 
-            if (!insideWall) {
+            if (!pointInsideWall) {
                 // Efeito de saída
                 this.createParticles(this.player.x + 15, this.player.y + 24, '#8a2be2', 20);
 
-                // Move o jogador
+                // Move o jogador e reseta velocidade
                 this.player.x = targetX;
                 this.player.y = targetY;
                 this.player.velocityY = 0;
+
+                // Forçamos a física a resolver imediatamente para ajustar o player (ex: tirar do chão)
+                Physics.resolvePlatforms(this.player, this.platforms);
 
                 // Efeito de chegada
                 this.createParticles(this.player.x + 15, this.player.y + 24, '#00d4ff', 20);
                 this.player.cooldowns.t = 250;
             } else {
-                // Feedback visual de falha (opcional: algumas partículas vermelhas no mouse)
-                this.createParticles(tx, ty, '#ff0000', 5);
+                // Feedback visual de erro
+                this.createParticles(tx, ty, '#ff0000', 8);
             }
         }
     }
@@ -120,11 +122,7 @@ class Game {
 
         if (triggerDoor) {
             requiredSide = triggerDoor.side;
-            
-            // Lógica de Alinhamento:
-            // Se a porta estava na Direita (x=29), a nova sala surge à direita (offsetX += width).
-            // Precisamos que a porta da Esquerda (x=0) da nova sala se alinhe com o Y da porta antiga.
-            if (requiredSide === 'right') offsetX = triggerDoor.x + 20; // +20 para compensar o ajuste do gatilho
+            if (requiredSide === 'right') offsetX = triggerDoor.x + 20;
             if (requiredSide === 'left') offsetX = triggerDoor.x - (30 * TILE_SIZE);
             if (requiredSide === 'top') offsetY = triggerDoor.y - (15 * TILE_SIZE);
             if (requiredSide === 'bottom') offsetY = triggerDoor.y + 20;
@@ -133,8 +131,6 @@ class Game {
         const roomIndex = (this.roomCount === 0) ? 0 : -1;
         const roomData = RoomManager.generateRoom(roomIndex, offsetX, offsetY, requiredSide);
 
-        // Se houver uma porta de entrada na nova sala que se alinha com a de saída da antiga,
-        // ajustamos a posição da nova sala para que as portas fiquem perfeitas.
         if (triggerDoor) {
             let oppositeSide = '';
             if (requiredSide === 'right') oppositeSide = 'left';
@@ -144,23 +140,25 @@ class Game {
 
             const entryDoor = roomData.doors.find(d => d.side === oppositeSide);
             if (entryDoor) {
-                // Ajuste fino para alinhar as alturas/posições das portas
                 const diffX = triggerDoor.x - entryDoor.x;
                 const diffY = triggerDoor.y - entryDoor.y;
-                
-                // Aplica o ajuste a todos os elementos da nova sala
                 roomData.platforms.forEach(p => { p.x += diffX; p.y += diffY; });
                 roomData.ladders.forEach(l => { l.x += diffX; l.y += diffY; });
                 roomData.enemies.forEach(e => { e.x += diffX; e.y += diffY; });
                 roomData.doors.forEach(d => { d.x += diffX; d.y += diffY; });
                 
-                // Apaga a porta de entrada da nova sala
+                // Ajustar o retângulo da sala também
+                offsetX += diffX;
+                offsetY += diffY;
+
                 const entryIdx = roomData.doors.indexOf(entryDoor);
                 roomData.doors.splice(entryIdx, 1);
             }
         }
 
-        // Adiciona os novos elementos aos existentes ao invés de substituir
+        // Armazenar a área da nova sala para o fundo azul
+        this.rooms.push({ x: offsetX, y: offsetY, w: 30 * TILE_SIZE, h: 15 * TILE_SIZE });
+
         this.platforms.push(...roomData.platforms);
         this.ladders.push(...roomData.ladders);
         this.enemies.push(...roomData.enemies);
@@ -174,7 +172,6 @@ class Game {
         this.roomCount++;
 
         if (this.roomCount % 10 === 0) {
-            // Boss surge à frente do jogador
             this.enemies.push(new DragonBoss(this.player.x + 500, this.player.y - 100));
         }
     }
@@ -274,14 +271,20 @@ class Game {
     draw() {
         this.ctx.clearRect(0, 0, 1200, 600);
         
-        // Fundo estável (Cinza escuro) - Desenhar antes do translate ou cobrindo tudo
-        this.ctx.fillStyle = '#1a1a1a';
+        // 1. Fundo do "Vazio" (Preto)
+        this.ctx.fillStyle = '#000000';
         this.ctx.fillRect(0, 0, 1200, 600);
 
         this.ctx.save();
         this.ctx.translate(-this.camX, -this.camY);
 
-        // Plataformas (Preto)
+        // 2. Fundo das Salas (Azul Escuro)
+        this.ctx.fillStyle = '#001a33'; // Azul marinho profundo
+        this.rooms.forEach(r => {
+            this.ctx.fillRect(r.x, r.y, r.w, r.h);
+        });
+
+        // Plataformas (Preto - agora se destacam sobre o azul)
         this.ctx.fillStyle = '#000';
         this.platforms.forEach(p => { this.ctx.fillRect(p.x, p.y, p.width, p.height); });
 
