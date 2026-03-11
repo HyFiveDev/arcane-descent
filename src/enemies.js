@@ -2,13 +2,30 @@ class Enemy {
     constructor(x, y, w, h, c) {
         this.x = x; this.y = y; this.width = w; this.height = h; this.color = c;
         this.hp = 100; this.maxHp = 100; this.vx = 0; this.velocityY = 0; this.frozen = 0; this.hurt = 0;
-        this.activated = false;
+        this.activated = false; this.grounded = false;
         this.activationRange = 600; // Distância para começar a perseguir
     }
     update(platforms, dt) {
         if (this.hurt > 0) this.hurt -= dt;
         if (this.frozen > 0) { this.frozen -= dt; return; }
-        this.y += this.velocityY; Physics.applyGravity(this); Physics.resolvePlatforms(this, platforms);
+
+        this.x += this.vx || 0;
+        this.y += this.velocityY;
+
+        Physics.applyGravity(this);
+        Physics.resolvePlatforms(this, platforms);
+    }
+    canMove(platforms, dir) {
+        if (!this.grounded) return false;
+
+        // Verifica o chão exatamente na direção do movimento
+        const checkX = dir > 0 ? this.x + this.width + 2 : this.x - 2;
+        const checkY = this.y + this.height + 5;
+
+        return platforms.some(p =>
+            checkX >= p.x && checkX <= p.x + p.width &&
+            checkY >= p.y && checkY <= p.y + p.height
+        );
     }
     draw(ctx) {
         let drawColor = this.color;
@@ -25,26 +42,34 @@ class Enemy {
 }
 
 class Orc extends Enemy {
-    constructor(x, y) { super(x, y, 40, 60, '#556b2f'); this.speed = 1.5; }
+    constructor(x, y) { super(x, y, 40, 60, '#556b2f'); this.speed = 5.0; }
     update(player, platforms, dt) {
+        this.vx = 0;
         const dist = Math.hypot(player.x - this.x, player.y - this.y);
         if (dist < this.activationRange) this.activated = true;
 
-        if (this.activated && this.frozen <= 0) {
-            this.x += (player.x > this.x ? 1 : -1) * this.speed;
+        if (this.activated && this.frozen <= 0 && this.grounded) {
+            const dir = player.x > this.x ? 1 : -1;
+            if (this.canMove(platforms, dir)) {
+                this.vx = dir * this.speed;
+            }
         }
         super.update(platforms, dt);
     }
 }
 
 class Soldier extends Enemy {
-    constructor(x, y) { super(x, y, 30, 50, '#708090'); this.speed = 3.5; }
+    constructor(x, y) { super(x, y, 30, 50, '#708090'); this.speed = 8.0; }
     update(player, platforms, dt) {
+        this.vx = 0;
         const dist = Math.hypot(player.x - this.x, player.y - this.y);
         if (dist < this.activationRange) this.activated = true;
 
-        if (this.activated && this.frozen <= 0) {
-            this.x += (player.x > this.x ? 1 : -1) * this.speed;
+        if (this.activated && this.frozen <= 0 && this.grounded) {
+            const dir = player.x > this.x ? 1 : -1;
+            if (this.canMove(platforms, dir)) {
+                this.vx = dir * this.speed;
+            }
         }
         super.update(platforms, dt);
     }
@@ -52,13 +77,13 @@ class Soldier extends Enemy {
 
 class DragonBoss extends Enemy {
     constructor(x, y) {
-        super(x, y, 150, 200, '#8b0000');
+        super(x, y, 150, 200, '#ff00ff');
         this.hp = 500; this.maxHp = 500; this.atkT = 0; this.clawT = 0;
         this.activationRange = 800;
     }
     update(player, platforms, dt, projectiles, showingMessage) {
         if (showingMessage) { this.atkT = 0; this.clawT = 0; return; }
-        
+
         const dist = Math.hypot((player.x + player.width / 2) - (this.x + this.width / 2), (player.y + player.height / 2) - (this.y + this.height / 2));
         if (dist < this.activationRange) this.activated = true;
 

@@ -73,6 +73,45 @@ const ROOM_TEMPLATES = [
             { x: 29, y: 10, w: 1, h: 4, side: 'right' }
         ],
         spawn: { x: 3, y: 13 }
+    },
+    // Sala 5: Corredor do Chefe (Índice 4)
+    {
+        isSpecial: true,
+        name: 'BossCorridor',
+        platforms: [
+            { x: 0, y: 14, w: 30, h: 1 }, { x: 0, y: 0, w: 30, h: 1 },
+        ],
+        ladders: [],
+        enemies: [],
+        doors: [
+            { x: 0, y: 11, w: 1, h: 3, side: 'left' },
+            { x: 29, y: 11, w: 1, h: 3, side: 'right' }
+        ],
+        spawn: { x: 2, y: 13 },
+        bgRects: [2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26].map(x => ({ x, y: 9, w: 1, h: 3 }))
+    },
+    // Sala 6: Sala do Chefe (Índice 5)
+    {
+        isSpecial: true,
+        name: 'BossRoom',
+        platforms: [
+            { x: 0, y: 14, w: 30, h: 1 }, { x: 0, y: 0, w: 30, h: 1 },
+            { x: 0, y: 0, w: 1, h: 11 }, { x: 29, y: 0, w: 1, h: 15 },
+            { x: 22, y: 8, w: 8, h: 7 }, // Pedestal do chefe
+            { x: 1, y: 4, w: 2, h: 1 }, { x: 7, y: 6, w: 7, h: 1 },
+            { x: 17, y: 10, w: 3, h: 1 }, { x: 7, y: 11, w: 3, h: 1 },
+        ],
+        ladders: [],
+        enemies: [
+            { type: 'Soldier', x: 2, y: 3 }, { type: 'Soldier', x: 9, y: 5 },
+            { type: 'Soldier', x: 12, y: 5 }, { type: 'Soldier', x: 18, y: 9 },
+            { type: 'Soldier', x: 8, y: 10 }, { type: 'Soldier', x: 15, y: 13 },
+            { type: 'Dragon', x: 24, y: 4 }
+        ],
+        doors: [
+            { x: 0, y: 11, w: 1, h: 3, side: 'left' }
+        ],
+        spawn: { x: 2, y: 13 }
     }
 ];
 
@@ -89,8 +128,8 @@ class RoomManager {
             if (requiredSide === 'top') oppositeSide = 'bottom';
             if (requiredSide === 'bottom') oppositeSide = 'top';
 
-            const validTemplates = ROOM_TEMPLATES.filter(t => 
-                t.doors.some(d => d.side === oppositeSide)
+            const validTemplates = ROOM_TEMPLATES.filter(t =>
+                !t.isSpecial && t.doors.some(d => d.side === oppositeSide)
             );
             template = validTemplates[Math.floor(Math.random() * validTemplates.length)];
         }
@@ -147,7 +186,7 @@ class RoomManager {
             let dw = d.w * TILE_SIZE;
             let dh = d.h * TILE_SIZE;
 
-            if (d.x === 0) dw += 20; 
+            if (d.x === 0) dw += 20;
             else if (d.x >= 29) { dx -= 20; dw += 20; }
             if (d.y === 0) dh += 20;
             else if (d.y >= 14) { dy -= 20; dh += 20; }
@@ -160,6 +199,7 @@ class RoomManager {
             const ey = e.y * TILE_SIZE + offsetY;
             if (e.type === 'Orc') return new Orc(ex, ey);
             if (e.type === 'Soldier') return new Soldier(ex, ey);
+            if (e.type === 'Dragon') return new DragonBoss(ex, ey);
             return null;
         }).filter(e => e !== null);
 
@@ -171,7 +211,13 @@ class RoomManager {
             spawn: { x: template.spawn.x * TILE_SIZE + offsetX, y: template.spawn.y * TILE_SIZE + offsetY },
             width: 30 * TILE_SIZE,
             height: 15 * TILE_SIZE,
-            template: template
+            template: template,
+            bgRects: (template.bgRects || []).map(r => ({
+                x: r.x * TILE_SIZE + offsetX,
+                y: r.y * TILE_SIZE + offsetY,
+                w: r.w * TILE_SIZE,
+                h: r.h * TILE_SIZE
+            }))
         };
     }
 }

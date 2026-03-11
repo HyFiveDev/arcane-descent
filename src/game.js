@@ -9,6 +9,8 @@ class Game {
         this.platforms = []; this.enemies = []; this.projectiles = []; this.particles = [];
         this.ladders = []; this.doors = [];
         this.rooms = []; // Rastrear as áreas de cada sala criada
+        this.bgRects = []; // Elementos decorativos de fundo
+        this.corridors = []; // Plataformas de ligação entre salas
         this.input = { keys: {}, pressed: {}, mouseX: 0, mouseY: 0, mouseDown: false };
         this.state = 'menu'; this.lt = 0;
         this.camX = 0;
@@ -128,8 +130,17 @@ class Game {
             if (requiredSide === 'bottom') offsetY = triggerDoor.y + 20;
         }
 
-        const roomIndex = (this.roomCount === 0) ? 0 : -1;
+        let roomIndex = -1;
+        if (this.roomCount === 0) {
+            roomIndex = 0;
+        } else if (this.lastRoomTemplateName === 'BossCorridor') {
+            roomIndex = 5; // Força a vinda da Sala do Chefe após o corredor
+        } else if (this.roomCount >= 9 && requiredSide === 'right') {
+            roomIndex = 4; // Ativa o Corredor do Chefe se for a 10ª sala+ e houver porta à direita
+        }
+
         const roomData = RoomManager.generateRoom(roomIndex, offsetX, offsetY, requiredSide);
+        this.lastRoomTemplateName = roomData.template.name;
 
         if (triggerDoor) {
             let oppositeSide = '';
@@ -140,14 +151,70 @@ class Game {
 
             const entryDoor = roomData.doors.find(d => d.side === oppositeSide);
             if (entryDoor) {
-                const diffX = triggerDoor.x - entryDoor.x;
-                const diffY = triggerDoor.y - entryDoor.y;
+                // --- LÓGICA DE PASSAGENS E PREVENÇÃO DE SOBREPOSIÇÃO ---
+                const segmentSize = 320; // Tamanho de cada segmento de passagem
+                let isOverlapping = true;
+                let totalPushX = 0;
+                let totalPushY = 0;
+
+                while (isOverlapping) {
+                    const currentDiffX = (triggerDoor.x - entryDoor.x) + totalPushX;
+                    const currentDiffY = (triggerDoor.y - entryDoor.y) + totalPushY;
+
+                    const newRoomRect = {
+                        x: offsetX + currentDiffX,
+                        y: offsetY + currentDiffY,
+                        width: 30 * TILE_SIZE,
+                        height: 15 * TILE_SIZE
+                    };
+
+                    isOverlapping = false;
+                    for (let r of this.rooms) {
+                        const roomBox = { x: r.x, y: r.y, width: r.w, height: r.h };
+                        if (Physics.checkCollision(newRoomRect, roomBox)) {
+                            isOverlapping = true;
+                            break;
+                        }
+                    }
+
+                    if (isOverlapping) {
+                        let segX = triggerDoor.x + totalPushX;
+                        let segY = triggerDoor.y + totalPushY;
+
+                        if (requiredSide === 'right') totalPushX += segmentSize;
+                        else if (requiredSide === 'left') { totalPushX -= segmentSize; segX -= segmentSize; }
+                        else if (requiredSide === 'top') { totalPushY -= segmentSize; segY -= segmentSize; }
+                        else if (requiredSide === 'bottom') totalPushY += segmentSize;
+
+                        // Criar a Estrutura da Passagem (Horizontal ou Vertical)
+                        if (requiredSide === 'right' || requiredSide === 'left') {
+                            // Passagem Horizontal: Teto e Chão
+                            const floor = { x: segX, y: triggerDoor.y + triggerDoor.height, width: segmentSize, height: 20 };
+                            const ceiling = { x: segX, y: triggerDoor.y - 40, width: segmentSize, height: 20 };
+                            this.platforms.push(floor, ceiling);
+                            this.corridors.push({ x: segX, y: triggerDoor.y - 40, width: segmentSize, height: triggerDoor.height + 60 });
+                        } else {
+                            // Passagem Vertical: Paredes e Escada
+                            const leftWall = { x: triggerDoor.x, y: segY, width: 10, height: segmentSize };
+                            const rightWall = { x: triggerDoor.x + triggerDoor.width - 10, y: segY, width: 10, height: segmentSize };
+                            const ladder = { x: triggerDoor.x, y: segY, width: triggerDoor.width, height: segmentSize };
+                            this.platforms.push(leftWall, rightWall);
+                            this.ladders.push(ladder);
+                            this.corridors.push({ x: triggerDoor.x, y: segY, width: triggerDoor.width, height: segmentSize });
+                        }
+                    }
+                }
+
+                let diffX = (triggerDoor.x - entryDoor.x) + totalPushX;
+                let diffY = (triggerDoor.y - entryDoor.y) + totalPushY;
+                // -------------------------------------------------------
+
                 roomData.platforms.forEach(p => { p.x += diffX; p.y += diffY; });
                 roomData.ladders.forEach(l => { l.x += diffX; l.y += diffY; });
                 roomData.enemies.forEach(e => { e.x += diffX; e.y += diffY; });
                 roomData.doors.forEach(d => { d.x += diffX; d.y += diffY; });
-                
-                // Ajustar o retângulo da sala também
+                if (roomData.bgRects) roomData.bgRects.forEach(bg => { bg.x += diffX; bg.y += diffY; });
+
                 offsetX += diffX;
                 offsetY += diffY;
 
@@ -163,17 +230,13 @@ class Game {
         this.ladders.push(...roomData.ladders);
         this.enemies.push(...roomData.enemies);
         this.doors.push(...roomData.doors);
+        if (roomData.bgRects) this.bgRects.push(...roomData.bgRects);
 
         if (this.roomCount === 0) {
             this.player.x = roomData.spawn.x;
             this.player.y = roomData.spawn.y;
         }
-
         this.roomCount++;
-
-        if (this.roomCount % 10 === 0) {
-            this.enemies.push(new DragonBoss(this.player.x + 500, this.player.y - 100));
-        }
     }
     update(dt) {
         if (this.state !== 'playing') return;
@@ -189,7 +252,7 @@ class Game {
             if (Physics.checkCollision(this.player, d)) {
                 const triggerDoor = { ...d };
                 this.doors.splice(i, 1); // Remove a porta vermelha que o player encostou
-                this.generate(triggerDoor); 
+                this.generate(triggerDoor);
                 break;
             }
         }
@@ -208,9 +271,9 @@ class Game {
 
         if (this.input.mouseDown) this.fire(worldMouseX, worldMouseY);
 
-        this.player.update({ 
-            keys: this.input.keys, 
-            keyPressed: k => { let v = this.input.pressed[k]; this.input.pressed[k] = false; return v; } 
+        this.player.update({
+            keys: this.input.keys,
+            keyPressed: k => { let v = this.input.pressed[k]; this.input.pressed[k] = false; return v; }
         }, this.platforms, this.ladders, dt);
 
         for (let i = this.enemies.length - 1; i >= 0; i--) {
@@ -270,7 +333,7 @@ class Game {
     }
     draw() {
         this.ctx.clearRect(0, 0, 1200, 600);
-        
+
         // 1. Fundo do "Vazio" (Preto)
         this.ctx.fillStyle = '#000000';
         this.ctx.fillRect(0, 0, 1200, 600);
@@ -278,10 +341,19 @@ class Game {
         this.ctx.save();
         this.ctx.translate(-this.camX, -this.camY);
 
-        // 2. Fundo das Salas (Azul Escuro)
-        this.ctx.fillStyle = '#001a33'; // Azul marinho profundo
+        // 2. Fundo das Salas e Corredores (Azul Escuro)
+        this.ctx.fillStyle = '#001a33';
         this.rooms.forEach(r => {
             this.ctx.fillRect(r.x, r.y, r.w, r.h);
+        });
+        this.corridors.forEach(c => {
+            this.ctx.fillRect(c.x, c.y, c.width, c.height);
+        });
+
+        // 3. Objetos de Fundo (Preto, conforme legenda)
+        this.ctx.fillStyle = '#000000';
+        this.bgRects.forEach(bg => {
+            this.ctx.fillRect(bg.x, bg.y, bg.w, bg.h);
         });
 
         // Plataformas (Preto - agora se destacam sobre o azul)
