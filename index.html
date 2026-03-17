@@ -44,6 +44,13 @@
             <p id="win-reason">O Dragão das Profundezas foi derrotado</p>
             <button id="win-btn" class="win-btn" onclick="location.reload()">VOLTAR AO MENU</button>
         </div>
+        <div id="pause-overlay" class="overlay" style="display: none;">
+            <h1>JOGO PAUSADO</h1>
+            <div style="display: flex; gap: 20px; margin-top: 30px;">
+                <button id="resume-btn">CONTINUAR</button>
+                <button onclick="location.reload()" style="background: var(--crimson);">REINICIAR JORNADA</button>
+            </div>
+        </div>
     </div>
     <script src="src/physics.js"></script>
     <script src="src/player.js"></script>

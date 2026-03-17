@@ -20,7 +20,20 @@ class Game {
         requestAnimationFrame(t => this.loop(t));
     }
     setup() {
-        window.addEventListener('keydown', e => { this.input.keys[e.code] = true; this.input.pressed[e.code] = true; });
+        window.addEventListener('keydown', e => { 
+            this.input.keys[e.code] = true; 
+            this.input.pressed[e.code] = true; 
+            if (e.code === 'Escape') {
+                if (this.state === 'playing') {
+                    this.state = 'paused';
+                    document.getElementById('pause-overlay').style.display = 'flex';
+                } else if (this.state === 'paused') {
+                    this.state = 'playing';
+                    document.getElementById('pause-overlay').style.display = 'none';
+                    this.lt = 0; // Previne que o delta time calcule um salto enorme de tempo
+                }
+            }
+        });
         window.addEventListener('keyup', e => this.input.keys[e.code] = false);
 
         const getMousePos = (e) => {
@@ -54,6 +67,15 @@ class Game {
             document.getElementById('menu-overlay').style.display = 'none';
             this.state = 'playing'; this.generate();
         };
+
+        const resumeBtn = document.getElementById('resume-btn');
+        if (resumeBtn) {
+            resumeBtn.onclick = () => {
+                this.state = 'playing';
+                document.getElementById('pause-overlay').style.display = 'none';
+                this.lt = 0;
+            };
+        }
     }
     fire(tx, ty) {
         if (this.player.cooldowns.fireball <= 0) {
@@ -299,7 +321,12 @@ class Game {
             p.x += p.vx; p.y += p.vy || 0;
             let removed = false;
             if (p.fromEn) {
-                if (Physics.checkCollision(p, this.player)) { this.player.hp -= 10; removed = true; }
+                if (Physics.checkCollision(p, this.player)) { 
+                    this.player.hp -= 10; 
+                    this.player.hurt = 50; // Feedback visual que tomou dano
+                    this.createParticles(p.x, p.y, p.color, 12); // Explosão do projétil inimigo no player
+                    removed = true; 
+                }
             } else {
                 for (let j = this.enemies.length - 1; j >= 0; j--) {
                     const en = this.enemies[j];

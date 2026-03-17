@@ -3,10 +3,11 @@ const ROOM_TEMPLATES = [
     // Sala 1
     {
         platforms: [
-            { x: 0, y: 14, w: 30, h: 1 }, { x: 0, y: 0, w: 30, h: 1 },
-            { x: 0, y: 0, w: 1, h: 15 }, { x: 29, y: 0, w: 1, h: 15 },
+            { x: 0, y: 14, w: 30, h: 1 }, 
+            { x: 0, y: 0, w: 14, h: 1 }, { x: 14, y: -4, w: 16, h: 1 },
+            { x: 0, y: 0, w: 1, h: 15 }, { x: 29, y: -3, w: 1, h: 18 },
             { x: 8, y: 11, w: 5, h: 1 }, { x: 15, y: 10, w: 7, h: 1 },
-            { x: 14, y: 4, w: 10, h: 1 }, { x: 14, y: 1, w: 15, h: 4 },
+            { x: 14, y: -3, w: 1, h: 8 }, { x: 15, y: 4, w: 4, h: 1 }, { x: 20, y: 4, w: 9, h: 1 }
         ],
         ladders: [{ x: 19, y: 4, w: 1, h: 6 }],
         enemies: [{ type: 'Orc', x: 23, y: 3 }],
@@ -51,7 +52,7 @@ const ROOM_TEMPLATES = [
         ],
         doors: [
             { x: 0, y: 2, w: 1, h: 3, side: 'left' },
-            { x: 12, y: 14, w: 4, h: 1, side: 'bottom' }
+            { x: 12, y: 14, w: 3, h: 1, side: 'bottom' }
         ],
         spawn: { x: 4, y: 13 }
     },
@@ -64,7 +65,7 @@ const ROOM_TEMPLATES = [
         ],
         ladders: [],
         enemies: [
-            { type: 'Orc', x: 6, y: 7 }, { type: 'Soldier', x: 10, y: 13 },
+            { type: 'Phoenix', x: 6, y: 7 }, { type: 'Soldier', x: 10, y: 13 },
             { type: 'Soldier', x: 15, y: 13 }, { type: 'Orc', x: 18, y: 13 },
             { type: 'Orc', x: 22, y: 13 },
         ],
@@ -200,6 +201,7 @@ class RoomManager {
             if (e.type === 'Orc') return new Orc(ex, ey);
             if (e.type === 'Soldier') return new Soldier(ex, ey);
             if (e.type === 'Dragon') return new DragonBoss(ex, ey);
+            if (e.type === 'Phoenix') return new Phoenix(ex, ey);
             return null;
         }).filter(e => e !== null);
 

@@ -110,3 +110,51 @@ class DragonBoss extends Enemy {
         super.update(platforms, dt);
     }
 }
+
+class Phoenix extends Enemy {
+    constructor(x, y) {
+        super(x, y, 40, 60, '#ff8c00'); // Laranja-escuro, mesmo tamanho do Orc (40x60)
+        this.speed = 4.0;
+        this.atkT = 0;
+        this.safeDistance = 350; // Distância mínima que a fênix tentará manter
+    }
+    update(player, platforms, dt, projectiles, showingMessage) {
+        if (showingMessage) return;
+
+        this.vx = 0;
+        const dist = Math.hypot((player.x + player.width / 2) - (this.x + this.width / 2), (player.y + player.height / 2) - (this.y + this.height / 2));
+        if (dist < this.activationRange) this.activated = true;
+
+        if (this.activated && this.frozen <= 0 && this.grounded) {
+            this.atkT += dt;
+
+            // Se o jogador teleportar/chegar muito perto, foge na direção oposta
+            if (dist < this.safeDistance) {
+                const dir = player.x > this.x ? -1 : 1; 
+                if (this.canMove(platforms, dir)) {
+                    this.vx = dir * this.speed;
+                }
+            } else if (dist > this.safeDistance + 100) {
+                // Se o jogador se afastar demais, anda na direção dele para manter distância de tiro
+                const dir = player.x > this.x ? 1 : -1; 
+                if (this.canMove(platforms, dir)) {
+                    this.vx = dir * this.speed;
+                }
+            }
+
+            // Sempre atira quando o cooldown esgotar (desde que o ataque esteja pronto)
+            if (this.atkT > 500) { // Cooldown super rápido (meio segundo)
+                const angle = Math.atan2((player.y + player.height / 2) - (this.y + this.height / 2), (player.x + player.width / 2) - (this.x + this.width / 2));
+                projectiles.push({
+                    x: this.x + this.width / 2, 
+                    y: this.y + this.height / 2,
+                    vx: Math.cos(angle) * 17, 
+                    vy: Math.sin(angle) * 17,
+                    r: 8, color: '#ff8c00', fromEn: true
+                });
+                this.atkT = 0;
+            }
+        }
+        super.update(platforms, dt);
+    }
+}
